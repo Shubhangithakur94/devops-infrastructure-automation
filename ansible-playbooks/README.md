@@ -244,7 +244,7 @@ ansible-playbook -i inventory/hosts.ini playbooks/sentry-install.yml -v
 Once the playbooks complete, check that the Sentry service is running and accessible on port `9000` from the target instance:
 
 ```bash
-curl localhost:9000
+curl -I http://localhost:9000
 ```
 
 ---
@@ -257,7 +257,7 @@ Run the following command on your local machine:
 
 ```bash
 aws ssm start-session \
-  --target i-0c867baa685e91a24 \
+  --target <target-instance-id> \
   --document-name AWS-StartPortForwardingSession \
   --parameters '{"portNumber":["9000"],"localPortNumber":["9000"]}'
 ```

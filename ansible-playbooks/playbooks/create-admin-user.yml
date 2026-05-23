@@ -1,0 +1,28 @@
+---
+- name: Create Sentry Admin User
+  hosts: sentry
+  become: true
+  gather_facts: false
+  vars_files:
+    - /home/ubuntu/ansible/group_vars/all/secrets.yml  # ← explicit path
+
+  tasks:
+    - name: Create Sentry admin user
+      ansible.builtin.shell: |
+        cd /opt/sentry
+        docker compose run --rm web createuser \
+          --email {{ sentry_admin_email }} \
+          --password {{ sentry_admin_password }} \
+          --superuser \
+          --no-input
+      args:
+        executable: /bin/bash
+      register: create_user
+      failed_when:
+        - create_user.rc != 0
+        - "'already exists' not in create_user.stdout"
+      changed_when: "'User created' in create_user.stdout"
+
+    - name: Show result
+      ansible.builtin.debug:
+        msg: "{{ create_user.stdout_lines }}"

@@ -1,0 +1,3 @@
+# Run log rotation daily at midnight
+
+0 0 * * * /bin/bash /opt/scripts/log_rotate.sh >> /var/log/log_rotate.log 2>&1

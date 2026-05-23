@@ -1,0 +1,108 @@
+---
+- name: Install Self-hosted Sentry
+  hosts: sentry
+  become: true
+  gather_facts: false
+
+  environment:
+    SENTRY_NO_PROMPT: "1"
+    REPORT_SELF_HOSTED_ISSUES: "0"
+
+  tasks:
+    - name: Install git and curl
+      ansible.builtin.apt:
+        name:
+          - git
+          - curl
+        state: present
+        update_cache: yes
+
+    - name: Get latest Sentry version
+      ansible.builtin.shell:
+        cmd: curl -Ls -o /dev/null -w %{url_effective} https://github.com/getsentry/self-hosted/releases/latest | sed 's|.*/||'
+        executable: /bin/bash
+      register: sentry_version
+      changed_when: false
+
+    - name: Show Sentry version
+      ansible.builtin.debug:
+        msg: "Installing Sentry version: {{ sentry_version.stdout }}"
+
+    - name: Check if sentry already cloned
+      ansible.builtin.stat:
+        path: /opt/sentry
+      register: sentry_dir
+
+    - name: Clone Sentry repo
+      ansible.builtin.git:
+        repo: https://github.com/getsentry/self-hosted.git
+        dest: /opt/sentry
+        version: "{{ sentry_version.stdout }}"
+        force: yes
+      when: not sentry_dir.stat.exists
+
+    - name: Run install.sh
+      ansible.builtin.shell: |
+        cd /opt/sentry
+        bash install.sh --skip-user-creation 2>&1 | tee /tmp/sentry-install.log
+      args:
+        executable: /bin/bash
+      environment:
+        SENTRY_NO_PROMPT: "1"
+        REPORT_SELF_HOSTED_ISSUES: "0"
+      async: 3600
+      poll: 30
+      register: install_job
+
+    - name: Show last 30 lines of install log
+      ansible.builtin.shell: tail -30 /tmp/sentry-install.log
+      args:
+        executable: /bin/bash
+      register: install_log
+      changed_when: false
+
+    - name: Print install log
+      ansible.builtin.debug:
+        msg: "{{ install_log.stdout_lines }}"
+
+    - name: Start Sentry with docker compose
+      ansible.builtin.shell:
+        cmd: docker compose up -d
+        chdir: /opt/sentry
+      args:
+        executable: /bin/bash
+      async: 600
+      poll: 15
+
+    - name: Wait for Sentry web to be healthy
+      ansible.builtin.shell:
+        cmd: docker compose ps
+        chdir: /opt/sentry
+      args:
+        executable: /bin/bash
+      register: compose_status
+      until: "'healthy' in compose_status.stdout or 'running' in compose_status.stdout"
+      retries: 30
+      delay: 30
+      changed_when: false
+
+    - name: Show running containers
+      ansible.builtin.shell:
+        cmd: docker compose ps
+        chdir: /opt/sentry
+      args:
+        executable: /bin/bash
+      register: compose_ps
+      changed_when: false
+
+    - name: Print container status
+      ansible.builtin.debug:
+        msg: "{{ compose_ps.stdout_lines }}"
+
+    - name: Show Sentry access info
+      ansible.builtin.debug:
+        msg:
+          - "Sentry installation complete!"
+          - "Access Sentry at: http://{{ ansible_host }}:9000"
+          - "To create admin user run:"
+          - "cd /opt/sentry && docker compose run --rm web createuser"

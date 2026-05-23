@@ -1,11 +1,8 @@
 # Ansible Automation for Self-Hosted Sentry Deployment
 
-## Overview
-
-This implementation demonstrates infrastructure automation using Ansible to configure and deploy Self-Hosted Sentry on a private Ubuntu EC2 instance.
+This repository demonstrates infrastructure automation using Ansible to configure and deploy a Self-Hosted Sentry instance on a private Ubuntu EC2 instance.
 
 The deployment architecture uses:
-
 - One private EC2 instance for Sentry
 - One management EC2 instance for Ansible execution
 - SSH-based Ansible connectivity between servers
@@ -14,21 +11,21 @@ The playbooks automate Docker installation, package configuration, and server pr
 
 ---
 
-# Architecture
+## Architecture
 
 ```text
-
 Ansible Control EC2 (Private)
       │
       │ SSH using private IP
       ▼
 Sentry Server EC2 (Private)
 ```
+
 ---
 
-# Repository Structure
+## Repository Structure
 
-```bash
+```text
 ansible/
 ├── inventory/
 │   └── hosts.ini
@@ -41,263 +38,244 @@ ansible/
 
 ---
 
-# Features
+## Features
 
-- SSH-based Ansible automation
-- Private EC2 server management
-- Automated Docker installation
-- Self-Hosted Sentry environment preparation
-- Infrastructure automation using playbooks
-- Secure deployment architecture using private networking
+- **SSH-based Ansible automation**
+- **Private EC2 server management**
+- **Automated Docker installation**
+- **Self-Hosted Sentry environment preparation**
+- **Infrastructure automation using playbooks**
+- **Secure deployment architecture using private networking**
 
 ---
 
-# Prerequisites
+## Prerequisites
 
-## Ansible Control Server Requirements
+### Ansible Control Server Requirements
 
-# Install Ansible
-
-Run the following commands on the Ansible control server:
+Run the following commands on the Ansible control server to install Ansible:
 
 ```bash
 sudo apt update
-
 sudo apt install software-properties-common -y
-
 sudo add-apt-repository --yes --update ppa:ansible/ansible
-
 sudo apt install ansible -y
 ```
 
-Verify installation:
+Verify the installation:
 
 ```bash
 ansible --version
 ```
 
----
+### AWS Infrastructure Requirements
 
-# AWS Infrastructure Requirements
+#### Sentry Server
+- **OS**: Ubuntu EC2 instance
+- **Network**: Private subnet
+- **System Specifications**:
+  - Minimum 4 vCPU
+  - Minimum 32 GB RAM
+  - Minimum 20+ GB storage
 
-## Sentry Server
-
-- Ubuntu EC2 instance
-- Private subnet
-- Minimum:
-  - 4 vCPU
-  - 32 GB RAM
-  - 20+ GB storage
-
-## Ansible Control Server
-
-- Ubuntu EC2 instance
-- Private subnet
-- SSH access enabled
-- Private network access to Sentry server
+#### Ansible Control Server
+- **OS**: Ubuntu EC2 instance
+- **Network**: Private subnet with SSH access enabled
+- **Connectivity**: Private network access to the Sentry server
 
 ---
 
-# Test SSH connectivity
+## Connectivity & Inventory Configuration
+
+### Test SSH Connectivity
+
+Test the connection from the Ansible Control Server to the Sentry Server:
 
 ```bash
 ssh -i /home/ubuntu/.ssh/sentry-key.pem ubuntu@<private-ip>
 ```
 
----
+### Configure Inventory
 
-# Configure Inventory
+Verify or update the hosts file at `inventory/hosts.ini`:
 
-```bash
+```ini
+[sentry]
+10.0.0.22  # ← replace with your Sentry VM private IP
 
-cat inventory/hosts.ini
+[sentry:vars]
+ansible_user=ubuntu
+ansible_connection=ssh
+ansible_ssh_private_key_file=/home/ubuntu/.ssh/sentry-key.pem
+ansible_python_interpreter=/usr/bin/python3
 ```
-Add the following configuration:
 
-Explanation:
-
-- `10.0.2.28` → Private IP of Sentry server
+#### Explanation of Variables:
+- `10.0.0.22` → Private IP of the Sentry server
 - `ansible_user` → SSH login user
 - `ansible_connection=ssh` → Use SSH for connectivity
-- `ansible_ssh_private_key_file` → SSH private key path
-- `ansible_python_interpreter` → Python interpreter path on target server
+- `ansible_ssh_private_key_file` → Path to the SSH private key
+- `ansible_python_interpreter` → Python interpreter path on the target server
 
 ---
 
-## ansible.cfg
+## Ansible Configuration
 
-The implementation uses a custom Ansible configuration file
+The implementation uses a custom `ansible.cfg` configuration file:
+
+```ini
+[defaults]
+inventory = inventory/hosts.ini
+remote_user = ubuntu
+host_key_checking = False
+deprecation_warnings = False
+interpreter_python = auto_silent
+vault_password_file = ~/.vault_pass
+
+[ssh_connection]
+ssh_args = -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
+```
 
 ### Configuration Explanation
 
 | Setting | Purpose |
 |---|---|
-| `inventory` | Inventory file location |
-| `remote_user` | Ansible SSH user |
-| `host_key_checking=False` | Disables SSH host key verification |
-| `deprecation_warnings=False` | Hides Ansible deprecation warnings |
-| `interpreter_python=auto_silent` | Automatically detects Python interpreter |
-| `vault_password_file` | Stores vault password file path |
+| `inventory` | Location of the inventory file |
+| `remote_user` | Ansible SSH login user |
+| `host_key_checking=False` | Disables SSH host key verification (useful in auto-scaled environments) |
+| `deprecation_warnings=False` | Hides Ansible deprecation warnings in stdout |
+| `interpreter_python=auto_silent` | Automatically detects python interpreter silently |
+| `vault_password_file` | Path to the file containing the vault password |
 
 ---
 
-# Ansible Vault Configuration
+## Ansible Vault Configuration
 
 Sensitive variables such as credentials are stored securely using Ansible Vault.
 
-Directory structure:
+### Directory Structure
 
-```bash
+```text
 group_vars/
 └── all/
     └── secrets.yaml
 ```
 
-Example encrypted file:
+### Example Encrypted File
 
 ```yaml
 sentry_email: admin@example.com
 sentry_password: MySecurePassword
 ```
 
-Encrypt secrets file:
+### Vault Commands
 
+- **Encrypt the secrets file**:
+  ```bash
+  ansible-vault encrypt group_vars/all/secrets.yaml
+  ```
+
+- **Edit the encrypted file**:
+  ```bash
+  ansible-vault edit group_vars/all/secrets.yaml
+  ```
+
+- **View the encrypted file**:
+  ```bash
+  ansible-vault view group_vars/all/secrets.yaml
+  ```
+
+### Vault Password File
+
+Store the vault password locally:
 ```bash
-ansible-vault encrypt group_vars/all/secrets.yaml
+~/ .vault_pass
 ```
 
-Edit encrypted file:
-
-```bash
-ansible-vault edit group_vars/all/secrets.yaml
-```
-
-View encrypted file:
-
-```bash
-ansible-vault view group_vars/all/secrets.yaml
-```
-
----
-
-# Vault Password File
-
-Vault password stored locally:
-
-```bash
-~/.vault_pass
-```
-
-Set secure permissions:
-
+Ensure you set secure file permissions on the password file:
 ```bash
 chmod 600 ~/.vault_pass
 ```
 
 ---
 
-# Verify Connectivity
+## Verification & Execution
 
-Run:
+### Verify Connectivity
+
+Run the Ansible ping module to verify connection to the host:
 
 ```bash
 ansible all -i inventory/hosts.ini -m ping -v
 ```
 
-Expected output:
+Expected response status: **SUCCESS**
+
+### Run Playbooks
+
+Execute the playbooks in order:
 
 ```bash
-SUCCESS
-```
-
----
-
-# Run Playbook
-
-Example:
-
-```bash
+# 1. Install Docker & Docker Compose
 ansible-playbook -i inventory/hosts.ini playbooks/install-docker.yml -v
+
+# 2. Create the Admin User
 ansible-playbook -i inventory/hosts.ini playbooks/create-admin-user.yml -v
+
+# 3. Setup and Install Sentry
 ansible-playbook -i inventory/hosts.ini playbooks/sentry-install.yml -v
 ```
 
 ---
 
-# Docker Installation
+## Playbook Details
 
-The playbook performs:
+### Docker Installation
+The `install-docker.yml` playbook handles:
+- Apt package repository updating
+- Docker GPG key and repository configuration
+- Docker Engine & Docker Compose installation
+- Docker service enablement and startup
 
-- apt package installation
-- Docker repository configuration
-- Docker Engine installation
-- Docker Compose plugin installation
-- Docker service enablement
-
----
-
-# Self-Hosted Sentry Setup
-
-The automation prepares the EC2 instance for:
-
-- Docker-based Sentry deployment
-- Dependency installation
-- Service initialization
-- Container orchestration using Docker Compose
-
-Official Sentry self-hosted setup:
-
-```bash
-https://develop.sentry.dev/self-hosted/
-```
+### Self-Hosted Sentry Setup
+The `sentry-install.yml` playbook prepares the Sentry server environment by:
+- Organizing Docker-based Sentry deployment setup files
+- Running dependency checks
+- Orchestrating container initialization
+- Referencing the [Official Sentry Self-Hosted Setup Documentation](https://develop.sentry.dev/self-hosted/)
 
 ---
 
-# Security Design
+## Security Design
 
-This implementation uses a private deployment architecture:
-
-- Sentry server deployed in private subnet
-- No public access to application server
-- SSH access routed through ansible control VM
-- Controlled internal communication only
-- Sensitive credentials stored using Ansible Vault
-- Private infrastructure deployment
-- No plaintext secrets inside playbooks
-- SSH key-based authentication
+This setup follows high-security architectural guidelines for private enterprise deployments:
+- **Private Subnets**: Sentry server is fully deployed inside a private subnet.
+- **Bastion/Control VM**: No public SSH or web access is permitted except through the Ansible control server.
+- **Ansible Vault**: Credentials and secrets are encrypted in transit and at rest inside the codebase.
+- **Key-based Auth**: Restricts all remote administration to SSH key-based authentication.
 
 ---
 
-# Troubleshooting
+## Troubleshooting
 
-## SSH Connection Issues
+### SSH Connection Issues
+- Verify that your AWS Security Groups allow inbound port 22 traffic from the control server.
+- Check route tables and VPC Peering/Transit Gateway config between the servers.
 
-Check:
-- security groups
-- subnet routing
-- SSH key permissions
-
----
-
-## Permission Issues
-
-Ensure private key has correct permissions:
-
+### Private Key Permissions
+Ensure your key file has the correct local read-only permissions:
 ```bash
 chmod 400 key.pem
 ```
 
----
-
-## Docker Issues
-
-Check Docker service:
-
+### Docker Service Issues
+Check the status of the Docker service on the target VM:
 ```bash
 sudo systemctl status docker
 ```
+
 ---
 
-# Author
-Shubhangi Thakur  
-DevOps / Cloud Engineer
+## Author
+
+- **Shubhangi Thakur** - *Cloud / DevOps Engineer*

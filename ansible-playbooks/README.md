@@ -117,6 +117,14 @@ ansible_python_interpreter=/usr/bin/python3
 - `ansible_ssh_private_key_file` → Path to the SSH private key
 - `ansible_python_interpreter` → Python interpreter path on the target server
 
+#### AWS EC2 Dynamic Inventory
+
+If using the AWS EC2 dynamic inventory plugin instead of a static hosts file, you can list dynamically discovered hosts using:
+
+```bash
+ansible-inventory -i aws_ec2.yml --list
+```
+
 ---
 
 ## Ansible Configuration
@@ -158,10 +166,10 @@ Sensitive variables such as credentials are stored securely using Ansible Vault.
 ```text
 group_vars/
 └── all/
-    └── secrets.yaml
+    └── secrets.yml
 ```
 
-### Example Encrypted File
+### Example Encrypted File Content
 
 ```yaml
 sentry_email: admin@example.com
@@ -170,26 +178,31 @@ sentry_password: MySecurePassword
 
 ### Vault Commands
 
-- **Encrypt the secrets file**:
+- **Create a new encrypted secrets file**:
   ```bash
-  ansible-vault encrypt group_vars/all/secrets.yaml
+  ansible-vault create group_vars/all/secrets.yml
+  ```
+
+- **Encrypt an existing secrets file**:
+  ```bash
+  ansible-vault encrypt group_vars/all/secrets.yml
   ```
 
 - **Edit the encrypted file**:
   ```bash
-  ansible-vault edit group_vars/all/secrets.yaml
+  ansible-vault edit group_vars/all/secrets.yml
   ```
 
 - **View the encrypted file**:
   ```bash
-  ansible-vault view group_vars/all/secrets.yaml
+  ansible-vault view group_vars/all/secrets.yml
   ```
 
 ### Vault Password File
 
 Store the vault password locally:
 ```bash
-~/ .vault_pass
+~/.vault_pass
 ```
 
 Ensure you set secure file permissions on the password file:
@@ -225,6 +238,36 @@ ansible-playbook -i inventory/hosts.ini playbooks/create-admin-user.yml -v
 # 3. Setup and Install Sentry
 ansible-playbook -i inventory/hosts.ini playbooks/sentry-install.yml -v
 ```
+
+### Verify Sentry Deployment
+
+Once the playbooks complete, check that the Sentry service is running and accessible on port `9000` from the target instance:
+
+```bash
+curl localhost:9000
+```
+
+---
+
+## Accessing the Sentry UI (SSM Port Forwarding)
+
+Since the Sentry server is deployed in a private subnet, you can securely access the Sentry web interface from your local machine using AWS Systems Manager (SSM) Session Manager port forwarding.
+
+Run the following command on your local machine:
+
+```bash
+aws ssm start-session \
+  --target i-0c867baa685e91a24 \
+  --document-name AWS-StartPortForwardingSession \
+  --parameters '{"portNumber":["9000"],"localPortNumber":["9000"]}'
+```
+
+Once the session is connected, navigate to the following URL in your web browser:
+```text
+http://localhost:9000
+```
+
+This maps your local port `9000` directly to the private Sentry instance's port `9000`.
 
 ---
 

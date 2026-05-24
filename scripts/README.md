@@ -19,7 +19,7 @@ The script automatically:
 
 ## How Logs Flow
 
-Think of your logs like letters arriving at an office desk:
+The log rotation script manages the log lifecycle in three clear stages:
 
 ```text
 [ Active Log File ] ───(Older than 5 days?)───► [ Archive Folder ] ───(Archived for 5+ days?)───► [ Shredder ]

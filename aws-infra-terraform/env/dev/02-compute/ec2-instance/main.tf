@@ -4,7 +4,7 @@ data "terraform_remote_state" "networking" {
 
   config = {
 
-    bucket = "sentinel-dev-terraform-state-bucket"
+    bucket = "sentinel-dev-terraform-state-bkt"
 
     key = "dev/networking/terraform.tfstate"
 

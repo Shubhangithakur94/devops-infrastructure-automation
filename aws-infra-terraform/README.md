@@ -49,8 +49,8 @@ Each layer maintains its own Terraform state file and consumes required outputs 
 │       └── 02-compute
 │           └── ec2-instance
 │               ├── backend.tf
-│               ├── data.tf
 │               ├── main.tf
+│               ├── provider.tf
 │               ├── terraform.tfvars
 │               └── variables.tf
 │
@@ -172,7 +172,7 @@ Example configuration in `backend.tf`:
 ```hcl
 terraform {
   backend "s3" {
-    bucket = "sentinel-dev-terraform-state-bucket"
+    bucket = "sentinel-dev-terraform-state-bkt"
     key    = "dev/networking/terraform.tfstate"
     region = "ap-south-1"
   }

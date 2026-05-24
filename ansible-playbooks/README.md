@@ -117,14 +117,6 @@ ansible_python_interpreter=/usr/bin/python3
 - `ansible_ssh_private_key_file` → Path to the SSH private key
 - `ansible_python_interpreter` → Python interpreter path on the target server
 
-#### AWS EC2 Dynamic Inventory
-
-If using the AWS EC2 dynamic inventory plugin instead of a static hosts file, you can list dynamically discovered hosts using:
-
-```bash
-ansible-inventory -i aws_ec2.yml --list
-```
-
 ---
 
 ## Ansible Configuration
@@ -220,6 +212,7 @@ Run the Ansible ping module to verify connection to the host:
 
 ```bash
 ansible all -i inventory/hosts.ini -m ping -v
+ansible all -m setup
 ```
 
 Expected response status: **SUCCESS**
@@ -230,13 +223,13 @@ Execute the playbooks in order:
 
 ```bash
 # 1. Install Docker & Docker Compose
-ansible-playbook -i inventory/hosts.ini playbooks/install-docker.yml -v
+ansible-playbook playbooks/install-docker.yml -v
 
 # 2. Create the Admin User
-ansible-playbook -i inventory/hosts.ini playbooks/create-admin-user.yml -v
+ansible-playbook playbooks/create-admin-user.yml -v
 
 # 3. Setup and Install Sentry
-ansible-playbook -i inventory/hosts.ini playbooks/sentry-install.yml -v
+ansible-playbook playbooks/sentry-install.yml -v
 ```
 
 ### Verify Sentry Deployment

@@ -23,8 +23,8 @@ Think of your logs like letters arriving at an office desk:
 
 ```text
 [ Active Log File ]  ───(Older than 5 days?)───► [ Archive Folder ] ───(Archived for 5+ days?)───► [ Shredder ]
-(Fresh data)                                          (Compressed .gz files)                              (Deleted forever)
-(Retain)                                              (Archive)                                           (Clean up)
+(Fresh data)                                      (Compressed .gz files)                              (Deleted forever)
+(Retain)                                              (Archive)                           (Clean up)
 ```
 
 ---

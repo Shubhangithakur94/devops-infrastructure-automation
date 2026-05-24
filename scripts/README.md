@@ -22,12 +22,10 @@ The script automatically:
 ```text
 scripts/
 ├── log_rotate.sh
-├── test_log_rotate.sh
 └── cronjob.txt
 ```
 
-- **[`log_rotate.sh`](file:///Users/shubhi/Working-dir/devops-infrastructure-automation/scripts/log_rotate.sh)**: The core production shell script that handles log validation, retention logic, rotation, compression, and archival cleanup.
-- **[`test_log_rotate.sh`](file:///Users/shubhi/Working-dir/devops-infrastructure-automation/scripts/test_log_rotate.sh)**: A test version of the rotation script calibrated for 2-minute retention rather than 5 days.
+- **[`log_rotate.sh`](file:///Users/shubhi/Working-dir/devops-infrastructure-automation/scripts/log_rotate.sh)**: The core shell script that handles log validation, retention logic, rotation, compression, and archival cleanup.
 - **[`cronjob.txt`](file:///Users/shubhi/Working-dir/devops-infrastructure-automation/scripts/cronjob.txt)**: Cron daemon configuration to schedule the rotation script.
 
 ---
@@ -61,33 +59,33 @@ Log entries newer than the retention period remain in the active log file, while
 ## Log Retention and Archival Logic
 
 ### Active Logs
-Recent logs are retained inside:
+Recent logs (newer than 5 days) are kept in the active log file:
 ```bash
 /var/log/application.log
 ```
 
 ### Archived Logs
-Older logs are moved into the archive directory:
+Older logs (older than 5 days) are moved to the archive folder:
 ```bash
 /var/log/archive/
 ```
-Archive files are created with dynamic timestamp names:
+Archived logs are grouped by date and saved with names like:
 ```bash
-application-2026-05-23_10-30-01.log
+application-YYYY-MM-DD.log
 ```
 
 ### Compression
-Archived logs are compressed automatically using `gzip`. The resulting files use the `.gz` format:
+Archived log files are automatically compressed using `gzip` to save space. They are saved as:
 ```bash
-application-2026-05-23_10-30-01.log.gz
+application-YYYY-MM-DD.log.gz
 ```
 
 ### Archive Cleanup
-Compressed archives older than the configured retention period are automatically deleted using the `find` command:
+Any compressed archive files in `/var/log/archive/` that are older than 5 days are deleted automatically. This is done using this command:
 ```bash
 find "$ARCHIVE_DIR" -type f -name "*.gz" -mtime +5 -delete
 ```
-This prevents unlimited archive growth.
+This keeps the archive folder from growing too large.
 
 ---
 
@@ -105,52 +103,71 @@ The script is designed to be fully idempotent. Repeated executions:
 
 The log rotation script is automated using the system cron daemon.
 
-### Production Schedule
-Set log rotation to run daily at midnight:
 ```cron
+# Schedule log rotation to run daily at midnight
 0 0 * * * /bin/bash /opt/scripts/log_rotate.sh >> /var/log/log_rotate.log 2>&1
-```
-
-### Testing Schedule
-For testing purposes, run the rotation script every 2 minutes:
-```cron
-*/2 * * * * /bin/bash /root/test_log_rotate.sh >> /tmp/log_rotate.log 2>&1
 ```
 
 ---
 
 ## How to Test the Script Manually
 
-### 1. Generate Sample Logs
-Run this loop in your terminal to continuously write mock log lines with current timestamps to the active log file:
+You can manually verify the log rotation and retention logic by following these steps:
+
+### 1. Generate Test Log Entries
+Add mock log entries with different dates (expired historical logs, fresh logs, and new live logs) to the active log file `/var/log/application.log`:
+
 ```bash
-while true
-do
-    echo "$(date '+%Y-%m-%d %H:%M:%S') INFO Application running" >> /var/log/application.log
-    sleep 5
-done
+# Target 1: Expired data (6 days old - expected to be archived and compressed)
+echo "$(date -d "6 days ago" +"%Y-%m-%d %H:%M:%S") WARN Expired historical data line entry" >> /var/log/application.log
+
+# Target 2: Retained fresh data (2 days old - expected to remain in active live log)
+echo "$(date -d "2 days ago" +"%Y-%m-%d %H:%M:%S") INFO Valid tracking line entry" >> /var/log/application.log
+
+# Target 3: Instant live entry (0 days old - expected to remain in active live log)
+echo "$(date +"%Y-%m-%d %H:%M:%S") DEBUG Live stream transaction record" >> /var/log/application.log
 ```
 
 ### 2. Run the Rotation Script
-Execute the test script manually (ensure you run this with the correct user permissions):
+Run the log rotation script. You may need to run this with root privileges (using `sudo` or as root) to make sure you have permission to write to `/var/log/`:
+
 ```bash
-bash test_log_rotate.sh
+sudo bash log_rotate.sh
 ```
 
 ### 3. Verify Active Logs
-Check the active log file to make sure recent entries are preserved:
+Check `/var/log/application.log` to make sure the fresh logs (Target 2 and Target 3) are still there, while the old log (Target 1) is gone:
+
 ```bash
-tail -f /var/log/application.log
+cat /var/log/application.log
+```
+
+**Expected Output:**
+```text
+YYYY-MM-DD HH:MM:SS INFO Valid tracking line entry
+YYYY-MM-DD HH:MM:SS DEBUG Live stream transaction record
 ```
 
 ### 4. Verify Archived Logs
-Check the archive directory to see if compressed `.gz` archives are being created:
+Check the archive folder at `/var/log/archive/` to verify that the expired log (Target 1) was moved there and compressed:
+
 ```bash
 ls -lh /var/log/archive
 ```
 
+To view the contents of the compressed log file, use `zcat`:
+
+```bash
+zcat /var/log/archive/application-*.gz
+```
+
+**Expected Output:**
+```text
+YYYY-MM-DD HH:MM:SS WARN Expired historical data line entry
+```
+
 ### 5. Verify Archive Cleanup
-Verify that archives older than the retention threshold (2 minutes for the test script) are automatically removed.
+Verify that archive files older than the retention threshold of 5 days are automatically cleaned up.
 
 ---
 

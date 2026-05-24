@@ -22,7 +22,7 @@ The script automatically:
 The log rotation script manages the log lifecycle in three clear stages:
 
 ```text
-[ Active Log File ] ───(Older than 5 days?)───► [ Archive Folder ] ───(Archived for 5+ days?)───► [ Shredder ]
+[ Active Log File ] ───(Older than 5 days?)───► [ Archive Folder ] ───(Archived for 5+ days?)───► [ Expired Log ]
 (Fresh data)                                    (Compressed .gz files)                            (Deleted forever)
 (Retain)                                        (Archive)                                         (Clean up)
 ```
@@ -95,7 +95,7 @@ application-YYYY-MM-DD.log.gz
 ### Archive Cleanup
 Any compressed archive files in `/var/log/archive/` that are older than 5 days are deleted automatically. This is done using this command:
 ```bash
-find "$ARCHIVE_DIR" -type f -name "*.gz" -mtime +5 -delete
+find "$ARCHIVE_DIR" -type f -name "*.gz" -mtime +"$RETENTION_DAYS" -delete
 ```
 This keeps the archive folder from growing too large.
 
